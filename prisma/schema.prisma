@@ -1,0 +1,119 @@
+// Prisma schema for Foundry Row
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  FOUNDER
+  INVESTOR
+  ADMIN
+}
+
+enum Stage {
+  IDEA
+  MVP
+  SEED
+  SERIES_A
+}
+
+enum PitchStatus {
+  PENDING_REVIEW
+  OPEN
+  IN_TALKS
+  CLOSED
+  REJECTED
+}
+
+enum InterestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  founderProfile  FounderProfile?
+  investorProfile InvestorProfile?
+  pitches         Pitch[]
+  interests       Interest[]
+  messages        Message[]
+}
+
+model FounderProfile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName String?
+  bio         String?
+  website     String?
+  location    String?
+}
+
+model InvestorProfile {
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firmName          String?
+  bio               String?
+  investmentThesis  String?
+  checkSizeMin      Int?
+  checkSizeMax      Int?
+  sectorsOfInterest String? // comma-separated for simplicity
+  verified          Boolean @default(false)
+}
+
+model Pitch {
+  id          String      @id @default(cuid())
+  founderId   String
+  founder     User        @relation(fields: [founderId], references: [id], onDelete: Cascade)
+  title       String
+  tagline     String
+  description String
+  sector      String
+  stage       Stage
+  fundingAsk  Int
+  equityPct   Int?
+  location    String?
+  status      PitchStatus @default(PENDING_REVIEW)
+  viewCount   Int         @default(0)
+  createdAt   DateTime    @default(now())
+
+  interests Interest[]
+}
+
+model Interest {
+  id        String         @id @default(cuid())
+  pitchId   String
+  pitch     Pitch          @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  investorId String
+  investor  User           @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  message   String?
+  status    InterestStatus @default(PENDING)
+  createdAt DateTime       @default(now())
+
+  messages  Message[]
+
+  @@unique([pitchId, investorId])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  interestId String
+  interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body       String
+  createdAt  DateTime @default(now())
+}
